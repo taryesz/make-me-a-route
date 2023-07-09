@@ -78,13 +78,18 @@ public:
 
 void input_map_size(int& map_width, int& map_height) {
 
-    cout << "Please, type in the size of your map:" << endl;
+    cout << "INPUT THE SIZE OF YOUR MAP:" << endl << endl;
+    cout << ">> width: ";
     cin >> map_width;
+    cout << ">> height: ";
     cin >> map_height;
+    cout << endl;
 
 }
 
 void input_map(int map_width, int map_height, char** map) {
+
+    cout << "INPUT THE MAP ITSELF:" << endl << endl;
 
     for (int current_height = 0; current_height < map_height; current_height++) {
         for (int current_width = 0; current_width < map_width; current_width++) {
@@ -93,6 +98,8 @@ void input_map(int map_width, int map_height, char** map) {
 
         }
     }
+
+    cout << endl;
 
 }
 
@@ -218,15 +225,20 @@ void parse_aviaconnection_commands(vector<string>& aviaconnections, vector<Dista
 
 void input_aviaconnections(int& aviaconnections_number, vector<string>& aviaconnections, vector<Distance*>& connections) {
 
-    cout << "Provide the number of aviaconnections you want to create: " << endl;
+    cout << "HOW MANY AVIACONNECTIONS YOU WANT TO CREATE?: " << endl << "remember: aviaconnections don't follow the road on your map (duh)" << endl << endl;
+    cout << ">> ";
     cin >> aviaconnections_number;
-    
+    cout << endl;
+
+    cout << "INPUT AVIACONNECTIONS FOLLOWING THE PATTERN 'START FINISH DISTANCE':" << endl << endl;
+
     string command = "";
 
     char ch = getchar();
 
     for (int i = 0; i < aviaconnections_number; i++) {
 
+        cout << ">> ";
         while (true) {
 
             ch = getchar();
@@ -244,6 +256,8 @@ void input_aviaconnections(int& aviaconnections_number, vector<string>& aviaconn
 
     }
     
+    cout << endl;
+
     parse_aviaconnection_commands(aviaconnections, connections);
 
 }
@@ -282,7 +296,7 @@ void parse_information_commands(vector<string>& commands, vector<Distance*>& con
             }
         }
 
-        cout << "WYNIK: " << endl << start << endl << finish << endl << info_type << endl;
+        // cout << "WYNIK: " << endl << start << endl << finish << endl << info_type << endl;
 
         for (Distance* connection : connections) {
 
@@ -298,13 +312,13 @@ void parse_information_commands(vector<string>& commands, vector<Distance*>& con
 
                     // LAUNCH DIJKSTRA HERE
 
-                    cout << "Travel time: " << "***" << endl << "Buffer cities: " << buffer_cities << endl;
+                    // cout << "Travel time: " << "***" << endl << "Buffer cities: " << buffer_cities << endl;
                 }
                 else if (info_type == 0) {
 
                     // LAUNCH DIJKSTRA HERE
 
-                    cout << "Travel time: " << "***" << endl;
+                    //cout << "Travel time: " << "***" << endl;
                 }
                 else {
                     cout << "No such command. Please, try again." << endl;
@@ -319,8 +333,10 @@ void parse_information_commands(vector<string>& commands, vector<Distance*>& con
 
 void input_information(int& commands_number, vector<string>& commands, vector<Distance*>& connections) {
 
-    cout << "Provide the number of commands you want to input: " << endl;
+    cout << "HOW MANY ROUTES WOULD YOU LIKE TO RECEIVE?: " << endl << endl << ">> ";
     cin >> commands_number;
+
+    cout << endl << "INPUT YOUR COMMANDS FOLLOWING THE PATTERN 'START FINISH 1' OR 'START FINISH 0'" << endl << "tip: '1' shows time and cities between your start and finish, '0' shows only time required" << endl << endl;
 
     string command = "";
 
@@ -328,6 +344,7 @@ void input_information(int& commands_number, vector<string>& commands, vector<Di
 
     for (int i = 0; i < commands_number; i++) {
 
+        cout << ">> ";
         while (true) {
 
             ch = getchar();
@@ -349,6 +366,114 @@ void input_information(int& commands_number, vector<string>& commands, vector<Di
 
 }
 
+void add_to_neighbors_vector(vector<City*>& cities, vector<Distance*>& connections, int move_x, int move_y, string city_name, int& hash_counter, int& original_dist) {
+
+    string destination_city = "";
+
+    for (City* city : cities) {
+
+        if (city->get_x() == move_x && city->get_y() == move_y) {
+
+            destination_city = city->get_name();
+
+            Distance* neighborhood = new Distance();
+            neighborhood->set_start(city_name);
+            neighborhood->set_destination(destination_city);
+            neighborhood->set_distance(hash_counter);
+
+            bool duplicate = false;
+
+            for (Distance* check : connections) {
+
+                if (check->get_start() == neighborhood->get_destination() && check->get_destination() == neighborhood->get_start() && check->get_distance() == neighborhood->get_distance()) {
+                    duplicate = true;
+                    break;
+                }
+
+            }
+
+            if (!duplicate) {
+                connections.push_back(neighborhood);
+            }
+
+            hash_counter = original_dist;
+
+        }
+    }
+
+}
+
+void dfs(char** map, bool** visited, int& current_height, int& current_width, vector<Distance*>& connections, int map_width, int map_height, string city_name, vector<City*>& cities, int& hash_counter) {
+    
+    int original_dist = hash_counter;
+    int directions_x[] = { -1, 1, 0, 0 };
+    int directions_y[] = { 0, 0, -1, 1 };
+
+    visited[current_height][current_width] = true;
+
+    for (int i = 0; i < 4; i++) {
+
+        int move_x = current_width + directions_x[i];
+        int move_y = current_height + directions_y[i];
+
+        if (move_y >= 0 && move_y < map_height && move_x >= 0 && move_x < map_width) {
+
+            if (map[move_y][move_x] == '#' && !visited[move_y][move_x]) {
+
+                ++hash_counter;
+                dfs(map, visited, move_y, move_x, connections, map_width, map_height, city_name, cities, hash_counter);
+                --hash_counter;
+
+            }
+            else if (map[move_y][move_x] == '*' && visited[move_y][move_x]) {
+                continue;
+            }
+        }
+
+        add_to_neighbors_vector(cities, connections, move_x, move_y, city_name, hash_counter, original_dist);
+
+    }
+
+}
+
+void reset_visited_map(bool** visited, int map_width, int map_height) {
+
+    for (int current_height = 0; current_height < map_height; current_height++) {
+        for (int current_width = 0; current_width < map_width; current_width++) {
+            visited[current_height][current_width] = false;
+        }
+    }
+
+}
+
+void create_neighbors_list(int map_width, int map_height, char** map, bool** visited, vector<Distance*>& connections, vector<City*>& cities, int& hash_counter) {
+    
+    for (int current_height = 0; current_height < map_height; current_height++) {
+        for (int current_width = 0; current_width < map_width; current_width++) {
+
+            if (map[current_height][current_width] == '*' && !visited[current_height][current_width]) {
+
+                for (City* city : cities) {
+
+                    if (city->get_x() == current_width && city->get_y() == current_height) {
+
+                        string city_name = city->get_name();
+                        int x = current_width;
+                        int y = current_height;
+                        dfs(map, visited, y, x, connections, map_width, map_height, city_name, cities, hash_counter);
+
+                        reset_visited_map(visited, map_width, map_height);
+
+                    }
+
+                }
+
+            }
+
+        }
+    }
+}
+
 int main() {
 
     int map_width = -1;
@@ -356,10 +481,20 @@ int main() {
 
     input_map_size(map_width, map_height);
 
+    // initialize 2D array for map
     char** map = new char*[map_height];
     for (int i = 0; i < map_height; i++) {
         map[i] = new char[map_width];
     }
+
+    // innitialize 2D array for visited flags
+    bool** map_visited = new bool* [map_height];
+    for (int i = 0; i < map_height; i++) {
+        map_visited[i] = new bool[map_width];
+    }
+
+    // set all map spots as not visited
+    reset_visited_map(map_visited, map_width, map_height);
 
     input_map(map_width, map_height, map);
 
@@ -378,12 +513,14 @@ int main() {
 
     input_information(commands_number, commands, connections);
 
-    /*for (City* c : cities) {
-        cout << endl << "City: " << c->get_name() << endl << "x: " << c->get_x() << endl << "y: " << c->get_y() << endl;
-    }*/
-    /*for (Distance* d : connections) {
-        cout << endl << "Start: " << d->get_start() << endl << "Destination: " << d->get_destination() << endl << "Travel time: " << d->get_distance() << endl << "Type: " << d->get_transportation() << endl;
-    }*/
+    int hash_counter = 0; // <<< variable that stores the distance between cities
+
+    create_neighbors_list(map_width, map_height, map, map_visited, connections, cities, hash_counter);
+
+    cout << endl << "RESULTS:" << endl;
+    for (Distance* d : connections) {
+        cout << endl << ">> ----------" << endl << "Start: " << d->get_start() << endl << "Destination: " << d->get_destination() << endl << "Travel time: " << d->get_distance() << endl << "Type: " << d->get_transportation() << endl;
+    }
 
     return 0;
 }
